@@ -28,7 +28,17 @@ app.add_middleware(
 # Initialize Supabase client
 supabase_url = os.getenv("SUPABASE_URL")
 supabase_key = os.getenv("SUPABASE_SERVICE_KEY")
+
+# Check if environment variables are set
+if not supabase_url or not supabase_key:
+    logger.error("Missing Supabase environment variables. Please check your .env file.")
+    raise ValueError("Missing required environment variables: SUPABASE_URL and/or SUPABASE_SERVICE_KEY")
 openai_api_key = os.getenv("OPENAI_API_KEY")
+
+# Check if OpenAI API key is set
+if not openai_api_key:
+    logger.error("Missing OpenAI API key. Please check your .env file.")
+    raise ValueError("Missing required environment variable: OPENAI_API_KEY")
 
 if not all([supabase_url, supabase_key, openai_api_key]):
     raise ValueError("Missing required environment variables")
