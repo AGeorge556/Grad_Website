@@ -1,18 +1,18 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { User } from '@supabase/supabase-js';
-import { supabase } from '../lib/supabase';
+import { User, AuthError } from '@supabase/supabase-js';
+import { supabase } from '@/lib/supabase';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 
 interface AuthContextType {
   user: User | null;
   loading: boolean;
-  login: (email: string, password: string) => Promise<void>;
-  signup: (email: string, password: string) => Promise<void>;
-  logout: () => Promise<void>;
+  signIn: (email: string, password: string) => Promise<void>;
+  signUp: (email: string, password: string) => Promise<{ error?: AuthError; emailConfirmation?: boolean }>;
+  signOut: () => Promise<void>;
 }
 
-const AuthContext = createContext<AuthContextType | null>(null);
+export const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
@@ -22,37 +22,20 @@ export const useAuth = () => {
   return context;
 };
 
-export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
   useEffect(() => {
     // Check active sessions and sets the user
-    const initializeAuth = async () => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
+    supabase.auth.getSession().then(({ data: { session } }) => {
         setUser(session?.user ?? null);
-      } catch (error) {
-        console.error('Error getting session:', error);
-        // If there's an error with the session, clear it and force re-login
-        await supabase.auth.signOut();
-      } finally {
         setLoading(false);
-      }
-    };
+    });
 
-    initializeAuth();
-
-    // Listen for changes on auth state
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (event === 'TOKEN_REFRESHED') {
-        console.log('Token refreshed successfully');
-      } else if (event === 'SIGNED_OUT') {
-        // Clear any local storage related to auth
-        localStorage.removeItem('supabase-auth');
-      }
-      
+    // Listen for changes on auth state (signed in, signed out, etc.)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
       setLoading(false);
     });
@@ -60,55 +43,65 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return () => subscription.unsubscribe();
   }, []);
 
-  const login = async (email: string, password: string) => {
-    try {
-      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) throw error;
-      
-      // Verify we have a valid session
-      if (!data.session) {
-        throw new Error('No session returned from login');
+  const signUp = async (email: string, password: string) => {
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        emailRedirectTo: `${window.location.origin}/auth/callback`
       }
-      
-      toast.success('Logged in successfully');
-      navigate('/upload');
-    } catch (error: any) {
-      console.error('Login error:', error.message);
-      toast.error(error.message || 'Failed to login');
-      throw error;
+    });
+
+    if (error) {
+      return { error };
     }
+
+    // If data.user exists but data.session is null, it means email confirmation is required
+    const emailConfirmation = !!data.user && !data.session;
+    return { emailConfirmation };
   };
 
-  const signup = async (email: string, password: string) => {
-    try {
-      const { error } = await supabase.auth.signUp({ email, password });
-      if (error) throw error;
-      toast.success('Account created successfully');
-      navigate('/upload');
-    } catch (error) {
-      toast.error('Failed to create account');
+  const signIn = async (email: string, password: string) => {
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+
+    if (error) {
+      // Check if the error is due to unconfirmed email
+      if (error.message.includes('Email not confirmed')) {
+        // Resend confirmation email
+        await supabase.auth.resend({
+          type: 'signup',
+          email,
+          options: {
+            emailRedirectTo: `${window.location.origin}/auth/callback`
+          }
+        });
+      }
       throw error;
     }
+
+    if (!data.session) {
+      throw new Error('No session created after login');
+    }
+
+    setUser(data.session.user);
   };
 
-  const logout = async () => {
-    try {
+  const signOut = async () => {
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
-      toast.success('Logged out successfully');
+    setUser(null);
       navigate('/login');
-    } catch (error) {
-      toast.error('Failed to logout');
-      throw error;
-    }
   };
 
   const value = {
     user,
     loading,
-    login,
-    signup,
-    logout,
+    signIn,
+    signUp,
+    signOut,
   };
 
   return (
@@ -116,4 +109,4 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       {!loading && children}
     </AuthContext.Provider>
   );
-};
+}

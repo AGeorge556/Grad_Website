@@ -7,9 +7,10 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-node_modules
-dist
-dist-ssr
+# Node
+node_modules/
+dist/
+dist-ssr/
 *.local
 
 # Environment variables
@@ -19,10 +20,46 @@ dist-ssr
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
-.idea
+.idea/
 .DS_Store
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
 *.sw?
+
+# Python
+venv/
+backend/venv/
+__pycache__/
+backend/__pycache__/
+talking_head/__pycache__/
+backend/talking_head/__pycache__/
+*.pyc
+*.pyo
+
+# Media and temp
+media/
+backend/media/
+talking_head/media/
+temp/
+backend/temp/
+
+# Model files
+model/files/models/
+
+# Binaries
+*.exe
+miniconda.exe
+rustup-init.exe
+
+# App logs
+app.log
+backend/app.log
+
+# Supabase temp
+supabase/.temp/
+
+# Ignore all sample/generated media/model files
+source/media/
+source/temp/

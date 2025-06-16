@@ -1,8 +1,57 @@
 fastapi==0.104.1
 uvicorn==0.24.0
-python-multipart==0.0.6
-supabase==1.2.0
 python-dotenv==1.0.0
+supabase==2.0.3
+youtube-transcript-api==0.6.1
+pytube==15.0.0
+openai==1.3.7
+python-multipart==0.0.6
+pydantic==2.5.2
+yt-dlp==2024.3.10
 moviepy==1.0.3
-openai>=1.3.0
-httpx>=0.24.0 
+whisper-openai
+gTTS
+spacy
+transformers
+torch
+torchvision
+torchaudio
+python-dateutil==2.9.0
+storage3==0.6.0
+starlette==0.27.0
+python-jose==3.3.0
+passlib==1.7.4
+bcrypt==4.1.2
+fleep==1.0.1
+requests==2.31.0
+vosk==0.3.45
+flask==3.0.2
+uuid==1.30
+python-jose[cryptography]==3.3.0
+pydub==0.25.1
+soundfile==0.12.1
+ffmpeg-python==0.2.0
+slowapi==0.1.9
+# Add the following to ensure the English model is installed
+en_core_web_sm @ https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.7.1/en_core_web_sm-3.7.1-py3-none-any.whl
+
+# Dependencies for Talking Head Video Generator
+# TTS Dependencies (Mock requires numpy, wave is built-in)
+numpy>=1.20.0 # For mock TTS audio generation
+
+# SadTalker Dependencies
+scikit-image>=0.25.0 # For skimage module
+kornia>=0.8.0 # For kornia geometry module
+gfpgan>=1.3.8 # For face enhancement
+
+# Additional SadTalker dependencies
+basicsr>=1.4.2
+face-alignment>=1.3.5
+dlib>=19.24.0
+opencv-python>=4.7.0
+scipy>=1.9.0
+ipython
+av
+resampy
+einops
+safetensors
