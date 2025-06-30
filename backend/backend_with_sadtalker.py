@@ -33,6 +33,12 @@ origins = [
     "http://127.0.0.1:5173",
     "http://localhost:8000",
     "http://127.0.0.1:8000",
+    "https://www.youtube.com",
+    "https://youtube.com",
+    "https://youtu.be",
+    "https://www.gstatic.com",
+    "https://fonts.googleapis.com",
+    "*"  # Allow all origins for development
 ]
 
 app.add_middleware(
@@ -52,8 +58,41 @@ os.makedirs(MEDIA_DIR, exist_ok=True)
 UPLOADS_DIR = os.path.join(MEDIA_DIR, "uploads")
 os.makedirs(UPLOADS_DIR, exist_ok=True)
 
-# Mount media directory for serving files
-app.mount("/media", StaticFiles(directory=MEDIA_DIR), name="media")
+# Custom media serving with proper MIME types (replaces StaticFiles mount)
+from fastapi.responses import FileResponse
+import mimetypes
+
+@app.get("/media/{file_path:path}")
+async def serve_media(file_path: str):
+    """Serve media files with proper MIME types"""
+    full_path = os.path.join(MEDIA_DIR, file_path)
+    
+    if not os.path.exists(full_path):
+        raise HTTPException(status_code=404, detail="File not found")
+    
+    # Determine MIME type
+    mime_type, _ = mimetypes.guess_type(full_path)
+    
+    # Set specific MIME types for video files
+    if file_path.lower().endswith('.mp4'):
+        mime_type = 'video/mp4'
+    elif file_path.lower().endswith('.webm'):
+        mime_type = 'video/webm'
+    elif file_path.lower().endswith('.mov'):
+        mime_type = 'video/quicktime'
+    elif file_path.lower().endswith('.avi'):
+        mime_type = 'video/x-msvideo'
+    
+    logger.info(f"Serving media file: {file_path} with MIME type: {mime_type}")
+    
+    return FileResponse(
+        path=full_path,
+        media_type=mime_type,
+        headers={
+            "Cache-Control": "no-cache",
+            "Accept-Ranges": "bytes"
+        }
+    )
 
 # Pydantic models for request validation
 class TextInput(BaseModel):
@@ -110,6 +149,34 @@ def download_youtube_frame(youtube_url: str, start_time: int = 0) -> str:
 @app.get("/")
 async def root():
     return {"message": "SadTalker API is running. Use POST /generate-talking-video to generate videos."}
+
+@app.get("/test-media")
+async def test_media():
+    """Test endpoint to check media directory and files"""
+    try:
+        files = []
+        for root, dirs, filenames in os.walk(MEDIA_DIR):
+            for filename in filenames:
+                if filename.endswith(('.mp4', '.webm', '.mov', '.avi')):
+                    full_path = os.path.join(root, filename)
+                    relative_path = os.path.relpath(full_path, MEDIA_DIR)
+                    file_size = os.path.getsize(full_path)
+                    files.append({
+                        'filename': filename,
+                        'path': relative_path.replace("\\", "/"),
+                        'url': f"/media/{relative_path.replace('\\', '/')}",
+                        'size': file_size,
+                        'exists': os.path.exists(full_path)
+                    })
+        
+        return {
+            "media_dir": MEDIA_DIR,
+            "media_dir_exists": os.path.exists(MEDIA_DIR),
+            "video_files": files[:10]  # Limit to first 10 files
+        }
+    except Exception as e:
+        logger.error(f"Error in test-media: {e}")
+        return {"error": str(e)}
 
 @app.post("/generate-talking-video")
 @limiter.limit("5/minute")

@@ -30,12 +30,17 @@ from transformers import pipeline
 import subprocess
 from backend.groq_utils import groq_chat
 from backend.gemini_utils import gemini_generate_flashcards, gemini_generate_quizzes, gemini_video_chat
+from backend.mistral_utils import mistral_generate_suggestions, mistral_chat
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 import time
 import shutil
 import uuid
+# Add the backend directory to Python path to allow imports
+backend_dir = os.path.dirname(os.path.abspath(__file__))
+if backend_dir not in sys.path:
+    sys.path.insert(0, backend_dir)
 # Import talking head video generator modules
 from talking_head.generate_video import generate_talking_video, MEDIA_DIR
 from talking_head.tts import text_to_speech_mock
@@ -169,6 +174,12 @@ class YouTubeInput(BaseModel):
         if not ('youtube.com' in v or 'youtu.be' in v):
             raise ValueError('Not a valid YouTube URL')
         return v
+
+class MistralChatRequest(BaseModel):
+    message: str = Field(..., min_length=1, max_length=2000, description="Chat message for Mistral AI")
+
+class MistralSuggestionsRequest(BaseModel):
+    transcript: str = Field(..., min_length=10, max_length=10000, description="Transcript text for generating suggestions")
 
 def download_youtube_frame(youtube_url: str, start_time: int = 0) -> str:
     """Download a frame from a YouTube video at the specified time."""
@@ -988,6 +999,64 @@ async def get_talking_head_for_video(video_id: str, request: Request):
     except Exception as e:
         logging.error(f"Error generating talking head for video {video_id}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to generate talking head: {str(e)}")
+
+# Mistral AI endpoints
+@app.post("/mistral-chat")
+@limiter.limit("20/minute")
+async def mistral_chat_endpoint(request_data: MistralChatRequest, request: Request):
+    """Send a chat message to Mistral AI"""
+    try:
+        logger.info(f"Mistral chat request: {request_data.message[:100]}...")
+        
+        response = await mistral_chat(request_data.message)
+        
+        return {
+            "success": True,
+            "response": response,
+            "timestamp": datetime.now().isoformat()
+        }
+        
+    except ValueError as e:
+        logger.error(f"Mistral chat validation error: {str(e)}")
+        raise HTTPException(
+            status_code=400,
+            detail=str(e)
+        )
+    except Exception as e:
+        logger.error(f"Mistral chat error: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to process chat message with Mistral AI"
+        )
+
+@app.post("/mistral-suggestions")
+@limiter.limit("15/minute")
+async def mistral_suggestions_endpoint(request_data: MistralSuggestionsRequest, request: Request):
+    """Generate educational suggestions from transcript using Mistral AI"""
+    try:
+        logger.info(f"Mistral suggestions request for transcript length: {len(request_data.transcript)}")
+        
+        suggestions = await mistral_generate_suggestions(request_data.transcript)
+        
+        return {
+            "success": True,
+            "suggestions": suggestions,
+            "count": len(suggestions),
+            "timestamp": datetime.now().isoformat()
+        }
+        
+    except ValueError as e:
+        logger.error(f"Mistral suggestions validation error: {str(e)}")
+        raise HTTPException(
+            status_code=400,
+            detail=str(e)
+        )
+    except Exception as e:
+        logger.error(f"Mistral suggestions error: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to generate suggestions with Mistral AI"
+        )
 
 if __name__ == "__main__":
     import uvicorn

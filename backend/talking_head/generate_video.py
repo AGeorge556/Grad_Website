@@ -19,25 +19,31 @@ DEFAULT_FACE_IMAGE = os.path.join(ASSETS_DIR, "default_face.jpg")
 FALLBACK_VIDEO = os.path.join(ASSETS_DIR, "fallback_talking_head.mp4")
 
 # Flag to use mock implementation instead of SadTalker
-# Set to False since we're now using the actual SadTalker implementation
+# IMPORTANT: Set to False to use the robust SadTalker implementation
 USE_MOCK_IMPLEMENTATION = False
+
+# ROBUSTNESS ENHANCEMENT: Enhanced SadTalker with fixes
+ENHANCED_SADTALKER_PATH = "D:\\University files\\Graduation Project\\SadTalker"
+# Use the enhanced preprocess module with all robustness fixes
+ENHANCED_PREPROCESS_SCRIPT = os.path.join(ENHANCED_SADTALKER_PATH, "enhanced_preprocess.py")
 
 # IMPORTANT: Update these paths based on the SADTALKER_SETUP.md instructions
 # Windows path for SadTalker
-WINDOWS_SADTALKER_PATH = "D:\\University files\\Graduation Project\\SadTalker"
+WINDOWS_SADTALKER_PATH = ENHANCED_SADTALKER_PATH
 
 # Path to our batch file that properly activates the SadTalker environment
-SADTALKER_BATCH_FILE = "D:\\University files\\Graduation Project\\Website\\run_sadtalker.bat"
+SADTALKER_BATCH_FILE = "D:\\University files\\Graduation Project\\Website\\run_sadtalker_enhanced.bat"
 
 # Check if we're in development or production mode to set proper paths
 if os.path.exists("/opt/SadTalker"):
     # Production path (Linux)
     SADTALKER_INFERENCE_SCRIPT = "/opt/SadTalker/inference.py"
     SADTALKER_ROOT_DIR = "/opt/SadTalker"
-elif os.path.exists(WINDOWS_SADTALKER_PATH):
-    # Windows development path
-    SADTALKER_INFERENCE_SCRIPT = os.path.join(WINDOWS_SADTALKER_PATH, "inference.py")
-    SADTALKER_ROOT_DIR = WINDOWS_SADTALKER_PATH
+elif os.path.exists(ENHANCED_SADTALKER_PATH):
+    # Windows development path with robustness fixes
+    SADTALKER_INFERENCE_SCRIPT = os.path.join(ENHANCED_SADTALKER_PATH, "inference.py") 
+    SADTALKER_ROOT_DIR = ENHANCED_SADTALKER_PATH
+    print(f"🔧 Using ENHANCED SadTalker with robustness fixes: {ENHANCED_SADTALKER_PATH}")
 else:
     # Fallback to relative path
     SADTALKER_INFERENCE_SCRIPT = os.path.join(os.path.dirname(os.path.dirname(BASE_DIR)), "SadTalker", "inference.py")

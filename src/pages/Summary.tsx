@@ -2,14 +2,13 @@ import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
 import toast from 'react-hot-toast';
-import { Trash2, Play, Loader2, MessageSquare, BookOpen, GraduationCap, FileText, PenTool, Search } from 'lucide-react';
+import { Loader2, MessageSquare, BookOpen, GraduationCap, FileText, PenTool, Search } from 'lucide-react';
 import { useSearchParams, useLocation } from 'react-router-dom';
 import classNames from 'classnames';
-import { Flashcards } from '../components/Flashcards';
-import { Quiz } from '../components/Quiz';
+import { EnhancedFlashcards } from '../components/EnhancedFlashcards';
+import { EnhancedQuiz } from '../components/EnhancedQuiz';
 import { Notes } from '../components/Notes';
 import YouTube from 'react-youtube';
-import api from '../services/api';
 import { mistralService, type ChatMessage, type Suggestion } from '../services/mistral';
 
 // Types
@@ -97,12 +96,19 @@ const VideoPlayer: React.FC<{
           opts={{
             width: '100%',
             height: '100%',
-            playerVars: { autoplay: 0 },
+            playerVars: { 
+              autoplay: 0,
+              origin: typeof window !== 'undefined' ? window.location.origin : '',
+              enablejsapi: 1,
+              rel: 0,
+              modestbranding: 1
+            },
           }}
           onError={(e: any) => {
             console.error('YouTube player error:', e);
             toast.error('Failed to load YouTube video');
           }}
+          onReady={() => console.log('YouTube player ready')}
         />
       );
     }
@@ -137,9 +143,26 @@ const VideoPlayer: React.FC<{
         <video
           className="w-full h-full"
           controls
-          src={talkingHeadUrl}
           poster="/video-placeholder.jpg"
-        />
+          preload="metadata"
+          onError={(e: React.SyntheticEvent<HTMLVideoElement, Event>) => {
+            console.error('Talking head video error:', e);
+            const videoElement = e.currentTarget;
+            console.error('Video error details:', {
+              error: videoElement.error,
+              networkState: videoElement.networkState,
+              readyState: videoElement.readyState,
+              src: videoElement.src
+            });
+            toast.error('Failed to load talking head video. Please try generating again.');
+          }}
+          onLoadStart={() => console.log('Video loading started:', talkingHeadUrl)}
+          onCanPlay={() => console.log('Video can play')}
+        >
+          <source src={talkingHeadUrl} type="video/mp4" />
+          <source src={talkingHeadUrl} type="video/webm" />
+          <p>Your browser does not support the video tag.</p>
+        </video>
       ) : (
         <div className="text-white text-center p-4">
           <p>Talking Head video not available.</p>
@@ -446,6 +469,32 @@ export const Summary: React.FC = () => {
     }
   };
 
+  // Data adapters for enhanced components
+  const adaptFlashcardsData = useCallback((flashcards: Flashcard[]) => {
+    return flashcards.map(card => ({
+      id: card.id.toString(),
+      question: card.question,
+      answer: card.answer,
+      concept: 'General',
+      bloom_level: 'understand',
+      difficulty: 3
+    }));
+  }, []);
+
+  const adaptQuizData = useCallback((questions: QuizQuestion[]) => {
+    return questions.map(q => ({
+      id: q.id,
+      question: q.question,
+      type: 'multiple_choice' as const,
+      options: q.options,
+      correctAnswer: q.correctAnswer,
+      difficulty: 'medium' as const,
+      explanation: `The correct answer is: ${q.options[q.correctAnswer]}`,
+      feedback_correct: 'Great job! You got it right.',
+      feedback_incorrect: 'Not quite right. Review the explanation below.'
+    }));
+  }, []);
+
   // Render helpers
   const renderTabContent = useCallback(() => {
     switch (activeTab) {
@@ -453,13 +502,13 @@ export const Summary: React.FC = () => {
         return loading ? (
           <LoadingSkeleton count={3} />
         ) : (
-          <Flashcards flashcards={videoData?.flashcards || []} />
+          <EnhancedFlashcards flashcards={adaptFlashcardsData(videoData?.flashcards || [])} />
         );
       case 'quizzes':
         return loading ? (
           <LoadingSkeleton count={3} />
         ) : (
-          <Quiz questions={videoData?.quizzes || []} />
+          <EnhancedQuiz questions={adaptQuizData(videoData?.quizzes || [])} />
         );
       case 'notes':
         return <Notes initialNotes={videoData?.notes || ''} videoId={videoId || ''} />;

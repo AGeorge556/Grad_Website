@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Upload, Link2, Video, Search } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { SpacesList } from '../components/SpacesList.tsx';
-import { Chat } from '../components/Chat.tsx';
+import { EnhancedChat } from '../components/EnhancedChat.tsx';
 import { YouTubeUpload } from '../components/YouTubeUpload';
 import { VideoList } from '../components/VideoList';
 import { AudioRecorder } from '../components/AudioRecorder';
@@ -116,7 +116,7 @@ export default function Dashboard() {
 
       {/* Chat Component */}
       {isChatOpen && (
-        <Chat
+        <EnhancedChat
           isOpen={isChatOpen}
           onClose={() => setIsChatOpen(false)}
           initialMessage={searchQuery}

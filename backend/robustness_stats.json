@@ -1,0 +1,17 @@
+{
+  "total_requests": 1,
+  "successful_generations": 0,
+  "fallback_usages": 1,
+  "critical_errors": 0,
+  "average_generation_time": 1.0632357597351074,
+  "daily_stats": {
+    "2025-06-25": {
+      "requests": 1,
+      "successes": 0,
+      "fallbacks": 1,
+      "errors": 0
+    }
+  },
+  "error_types": {},
+  "first_run": "2025-06-25T12:03:43.720578"
+}

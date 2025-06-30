@@ -1,25 +1,6 @@
-import { Mistral } from '@mistralai/mistralai';
+import { apiService } from './api';
 
-// Try to get API key from environment
-const apiKey = import.meta.env.VITE_MISTRAL_API_KEY;
-
-// For debugging - don't log the actual key in production
-console.log('API Key available:', !!apiKey);
-
-// Initialize with API key if available, or empty string (will fail gracefully)
-let mistral: Mistral;
-try {
-  mistral = new Mistral(apiKey || '');
-} catch (e) {
-  console.error('Failed to initialize Mistral client:', e);
-  // Create a placeholder that will always return empty results
-  mistral = {
-    chat: {
-      complete: async () => ({ choices: [{ message: { content: '[]' } }] })
-    }
-  } as unknown as Mistral;
-}
-
+// Updated Mistral service to use secure backend endpoints
 export interface Suggestion {
   id: string;
   text: string;
@@ -32,95 +13,115 @@ export interface ChatMessage {
 }
 
 class MistralService {
-  private model = "mistral-large-latest";
-  private isApiKeyConfigured = !!apiKey;
+  private isBackendAvailable = true;
 
   async generateSuggestions(transcript: string): Promise<Suggestion[]> {
     try {
-      // Return empty suggestions if API key is not configured
-      if (!this.isApiKeyConfigured) {
-        console.warn('Mistral API key is not configured. Returning empty suggestions.');
+      if (!transcript || transcript.trim().length === 0) {
+        console.warn('No transcript provided for suggestions');
         return [];
       }
 
-      const prompt = `Analyze this transcript and generate 3-5 relevant questions or discussion points. Format your response as a JSON array of objects, where each object has:
-      - id: a unique string identifier
-      - text: the full question or discussion point
-      - shortcut: a brief version of the text (max 5 words)
-      
-      Transcript: ${transcript}
-      
-      Respond with ONLY the JSON array, no additional text.`;
-      
-      const response = await mistral.chat.complete({
-        model: this.model,
-        messages: [
-          {
-            role: "user",
-            content: prompt
-          }
-        ]
+      console.log('Generating suggestions via backend for transcript length:', transcript.length);
+
+      // Call backend endpoint instead of direct API
+      const response = await fetch('/api/mistral-suggestions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          transcript: transcript.trim()
+        }),
       });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ detail: 'Unknown error' }));
+        throw new Error(`Backend error: ${response.status} - ${errorData.detail || 'Failed to generate suggestions'}`);
+      }
+
+      const data = await response.json();
       
-      const content = response.choices[0].message.content;
-      if (!content || typeof content !== 'string') {
-        console.warn('Invalid response format from Mistral API');
+      if (!data.success || !Array.isArray(data.suggestions)) {
+        console.warn('Invalid response format from backend');
         return [];
       }
-      
-      try {
-        // Clean the response text to ensure it's valid JSON
-        const cleanedText = content.trim().replace(/^```json\n?/, '').replace(/\n?```$/, '');
-        const suggestions = JSON.parse(cleanedText);
-        
-        if (!Array.isArray(suggestions)) {
-          console.warn('Response is not an array');
-          return [];
-        }
-        
-        return suggestions.map((suggestion, index) => ({
-          id: suggestion.id || `suggestion-${index}`,
-          text: suggestion.text || '',
-          shortcut: suggestion.shortcut || suggestion.text?.split(' ').slice(0, 5).join(' ') || ''
-        }));
-      } catch (e) {
-        console.error('Error parsing suggestions:', e);
-        return [];
-      }
+
+      return data.suggestions.map((suggestion: any, index: number) => ({
+        id: suggestion.id || `suggestion-${index}`,
+        text: suggestion.text || '',
+        shortcut: suggestion.shortcut || suggestion.text?.substring(0, 30) + '...' || ''
+      }));
+
     } catch (error: unknown) {
       console.error('Error generating suggestions:', error);
-      // Return empty array instead of throwing
+      this.isBackendAvailable = false;
+      
+      // Return empty array instead of throwing to maintain UX
       return [];
     }
   }
 
   async sendMessage(message: string): Promise<string> {
     try {
-      // Return empty message if API key is not configured
-      if (!this.isApiKeyConfigured) {
-        return "AI assistant is not available. Please configure the Mistral API key.";
+      if (!message || message.trim().length === 0) {
+        return "Please provide a message.";
       }
 
-      const response = await mistral.chat.complete({
-        model: this.model,
-        messages: [
-          {
-            role: "user",
-            content: message
-          }
-        ]
+      console.log('Sending message via backend:', message.substring(0, 50) + '...');
+
+      // Call backend endpoint instead of direct API
+      const response = await fetch('/api/mistral-chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          message: message.trim()
+        }),
       });
-      
-      const content = response.choices[0].message.content;
-      if (!content || typeof content !== 'string') {
-        return "Invalid response from AI assistant. Please try again.";
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ detail: 'Unknown error' }));
+        
+        if (response.status === 401) {
+          return "AI assistant is temporarily unavailable due to authentication issues.";
+        } else if (response.status === 429) {
+          return "Too many requests. Please wait a moment and try again.";
+        } else {
+          throw new Error(`Backend error: ${response.status} - ${errorData.detail || 'Failed to send message'}`);
+        }
       }
+
+      const data = await response.json();
       
-      return content;
+      if (!data.success || !data.response) {
+        return "I'm sorry, I couldn't generate a response. Please try again.";
+      }
+
+      this.isBackendAvailable = true;
+      return data.response;
+
     } catch (error: unknown) {
       console.error('Error sending message:', error);
-      return "Failed to get a response from the AI assistant. Please try again later.";
+      this.isBackendAvailable = false;
+      
+      if (error instanceof Error && error.message.includes('401')) {
+        return "AI assistant is not available. Please check the API configuration.";
+      } else {
+        return "Failed to get a response from the AI assistant. Please try again later.";
+      }
     }
+  }
+
+  // Utility method to check if backend is available
+  isAvailable(): boolean {
+    return this.isBackendAvailable;
+  }
+
+  // Method to reset availability status
+  resetAvailability(): void {
+    this.isBackendAvailable = true;
   }
 }
 

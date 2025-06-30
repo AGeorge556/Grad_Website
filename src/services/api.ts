@@ -39,6 +39,8 @@ export const API_ENDPOINTS = {
   VIDEO_CHAT: '/video-chat',
   TALKING_HEAD: '/process-video-with-talking-head',
   GENERATE_TALKING_VIDEO: '/generate-talking-video',
+  MISTRAL_CHAT: '/mistral-chat',
+  MISTRAL_SUGGESTIONS: '/mistral-suggestions',
 } as const;
 
 // Rate limiting configuration
@@ -203,6 +205,17 @@ export const apiService = {
 
   videoChat: async (summary: string, message: string): Promise<ApiResponse<string>> => {
     const response = await api.post(API_ENDPOINTS.VIDEO_CHAT, { summary, message });
+    return response.data;
+  },
+
+  // Mistral AI Services
+  mistralChat: async (message: string): Promise<ApiResponse<{ response: string }>> => {
+    const response = await api.post(API_ENDPOINTS.MISTRAL_CHAT, { message });
+    return response.data;
+  },
+
+  mistralSuggestions: async (transcript: string): Promise<ApiResponse<{ suggestions: any[] }>> => {
+    const response = await api.post(API_ENDPOINTS.MISTRAL_SUGGESTIONS, { transcript });
     return response.data;
   },
 };
