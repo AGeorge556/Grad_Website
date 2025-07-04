@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Send, X, Loader2, MessageCircle, BookOpen, HelpCircle, Lightbulb } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 import { toast } from 'react-hot-toast';
+import '../styles/resizable-chat.css';
 
 interface Message {
   id: string;
@@ -149,67 +150,126 @@ export function EnhancedChat({
         }
       }
 
-      // Send enhanced chat request
-      const response = await fetch('/api/enhanced-chat', {
+      // Send chat request using mistral-chat endpoint
+      const response = await fetch('/api/mistral-chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          message: messageToSend.trim(),
-          user_id: userId,
-          topic: topic,
-          session_id: sessionId
+          message: messageToSend.trim()
         })
       });
 
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(`API Error: ${response.status} - ${errorData.detail || 'Request failed'}`);
       }
 
       const result = await response.json();
-      const chatData: ChatResponse = result.data;
+      
+      // Handle the response format from mistral-chat
+      let responseText = '';
+      let responseType = 'educational_response';
+      
+      if (result.success && result.data && result.data.response) {
+        responseText = result.data.response;
+      } else if (result.response) {
+        responseText = result.response;
+      } else {
+        throw new Error('Invalid response format from API');
+      }
 
       const assistantMessage: Message = {
         id: uuidv4(),
         role: 'assistant',
-        content: chatData.response,
+        content: responseText,
         timestamp: new Date(),
-        type: chatData.type as any,
+        type: responseType as any,
         metadata: {
-          conversation_id: chatData.conversation_id,
-          message_count: chatData.message_count
+          conversation_id: sessionId,
+          message_count: messages.length + 1
         }
       };
 
       setMessages((prev) => [...prev, assistantMessage]);
       
-      // Update follow-up suggestions
-      if (chatData.follow_up_suggestions) {
-        setFollowUpSuggestions(chatData.follow_up_suggestions);
-      }
+      // Generate contextual follow-up suggestions
+      const contextualSuggestions = generateFollowUpSuggestions(messageToSend, responseText);
+      setFollowUpSuggestions(contextualSuggestions);
 
       // Update conversation stats
-      if (chatData.conversation_id && chatData.message_count) {
+      if (sessionId) {
         setConversationStats({
-          conversation_id: chatData.conversation_id,
-          message_count: chatData.message_count
+          conversation_id: sessionId,
+          message_count: messages.length + 1
         });
       }
 
     } catch (error) {
       console.error('Chat error:', error);
-      toast.error('Failed to send message. Please try again.');
       
-      const errorMessage: Message = {
+      // Provide specific error messages based on the error type
+      let errorMessage = 'I apologize, but I encountered an error. Please try again.';
+      
+      if (error instanceof Error) {
+        if (error.message.includes('401')) {
+          errorMessage = 'AI assistant is temporarily unavailable. Please check your connection and try again.';
+        } else if (error.message.includes('429')) {
+          errorMessage = 'Too many requests. Please wait a moment and try again.';
+        } else if (error.message.includes('500')) {
+          errorMessage = 'The AI service is temporarily unavailable. Please try again in a few minutes.';
+        } else if (error.message.includes('Network')) {
+          errorMessage = 'Network connection issue. Please check your internet connection and try again.';
+        }
+      }
+      
+      const errorMsg: Message = {
         id: uuidv4(),
         role: 'assistant',
-        content: 'I apologize, but I encountered an error. Please try rephrasing your question or check your connection.',
+        content: errorMessage,
         timestamp: new Date(),
         type: 'error'
       };
-      setMessages((prev) => [...prev, errorMessage]);
+      setMessages((prev) => [...prev, errorMsg]);
     } finally {
       setIsLoading(false);
     }
+  };
+
+  // Helper function to generate follow-up suggestions based on context
+  const generateFollowUpSuggestions = (userMessage: string, assistantResponse: string): string[] => {
+    const suggestions = [];
+    
+    // Add context-based suggestions
+    if (userMessage.toLowerCase().includes('explain')) {
+      suggestions.push('Can you give me a practical example?');
+      suggestions.push('What are the key points to remember?');
+    } else if (userMessage.toLowerCase().includes('example')) {
+      suggestions.push('Can you explain the theory behind this?');
+      suggestions.push('Are there any common mistakes to avoid?');
+    } else if (userMessage.toLowerCase().includes('how')) {
+      suggestions.push('Why is this approach recommended?');
+      suggestions.push('What are the alternatives?');
+    }
+    
+    // Add general educational suggestions
+    if (suggestions.length < 3) {
+      const generalSuggestions = [
+        'Can you quiz me on this topic?',
+        'What should I focus on when studying this?',
+        'Can you break this down into simpler terms?',
+        'How can I remember this better?',
+        'What are some real-world applications?'
+      ];
+      
+      // Add random general suggestions to fill up to 3
+      while (suggestions.length < 3 && generalSuggestions.length > 0) {
+        const randomIndex = Math.floor(Math.random() * generalSuggestions.length);
+        const suggestion = generalSuggestions.splice(randomIndex, 1)[0];
+        suggestions.push(suggestion);
+      }
+    }
+    
+    return suggestions.slice(0, 3);
   };
 
   const handleSuggestionClick = (suggestion: string) => {
@@ -257,9 +317,22 @@ export function EnhancedChat({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed bottom-4 right-4 w-96 h-[700px] bg-white dark:bg-gray-800 rounded-lg shadow-xl flex flex-col z-50 border border-gray-200 dark:border-gray-700">
+    <div 
+      className="fixed bottom-4 right-4 z-50 resizable rounded-xl shadow-xl border dark:border-gray-800 bg-white dark:bg-gray-900"
+      style={{
+        resize: 'both',
+        overflow: 'auto',
+        minHeight: '250px',
+        minWidth: '300px',
+        maxHeight: '90vh',
+        maxWidth: '100%',
+        width: '384px', // Default width
+        height: '700px' // Default height
+      }}
+    >
+      <div className="w-full h-full flex flex-col relative">
       {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b dark:border-gray-700 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-t-lg">
+        <div className="flex items-center justify-between p-4 border-b dark:border-gray-700 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-t-xl">
         <div className="flex items-center gap-2">
           <BookOpen size={20} />
           <div>
@@ -423,6 +496,15 @@ export function EnhancedChat({
           >
             Quiz Me
           </button>
+          </div>
+        </div>
+
+        {/* Resize handle indicator */}
+        <div className="absolute bottom-0 right-0 w-4 h-4 pointer-events-none opacity-30 hover:opacity-60 transition-opacity">
+          <div className="absolute bottom-1 right-1 w-1 h-1 bg-gray-400 dark:bg-gray-600 rounded-sm"></div>
+          <div className="absolute bottom-2 right-2 w-1 h-1 bg-gray-400 dark:bg-gray-600 rounded-sm"></div>
+          <div className="absolute bottom-1 right-3 w-1 h-1 bg-gray-400 dark:bg-gray-600 rounded-sm"></div>
+          <div className="absolute bottom-3 right-1 w-1 h-1 bg-gray-400 dark:bg-gray-600 rounded-sm"></div>
         </div>
       </div>
     </div>

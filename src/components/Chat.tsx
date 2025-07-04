@@ -18,9 +18,12 @@ interface ChatProps {
   endpoint?: string;
   summary?: string;
   title?: string;
+  userId?: string;
+  topic?: string;
+  sessionId?: string;
 }
 
-export function Chat({ isOpen, onClose, initialMessage, endpoint = '/chat', summary, title = 'AI Tutor' }: ChatProps) {
+export function Chat({ isOpen, onClose, initialMessage, endpoint = '/chat', summary, title = 'AI Tutor', userId, topic, sessionId }: ChatProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState(initialMessage || '');
   const [isLoading, setIsLoading] = useState(false);
@@ -70,20 +73,55 @@ export function Chat({ isOpen, onClose, initialMessage, endpoint = '/chat', summ
     try {
       console.log('[DEBUG] Sending message:', userMessage.content);
       let response;
-      if (endpoint === '/video-chat' && summary) {
+      
+      // Use enhanced chat if we have user context or it's a video chat
+      if (userId || topic || sessionId || (endpoint === '/video-chat' && summary)) {
+        response = await apiService.enhancedChat(
+          userMessage.content,
+          userId,
+          topic || (summary ? 'Video Discussion' : undefined),
+          sessionId
+        );
+        
+        // Handle enhanced chat response format
+        if (response.data && response.data.data) {
+          const enhancedResponse = response.data.data;
+          const assistantMessage: Message = {
+            id: uuidv4(),
+            role: 'assistant',
+            content: enhancedResponse.response,
+            timestamp: new Date(),
+          };
+          setMessages((prev) => [...prev, assistantMessage]);
+        } else {
+          // Fallback to regular response format
+          const assistantMessage: Message = {
+            id: uuidv4(),
+            role: 'assistant',
+            content: response.data,
+            timestamp: new Date(),
+          };
+          setMessages((prev) => [...prev, assistantMessage]);
+        }
+      } else if (endpoint === '/video-chat' && summary) {
         response = await apiService.videoChat(summary, userMessage.content);
+        const assistantMessage: Message = {
+          id: uuidv4(),
+          role: 'assistant',
+          content: response.data,
+          timestamp: new Date(),
+        };
+        setMessages((prev) => [...prev, assistantMessage]);
       } else {
         response = await apiService.chat(userMessage.content);
+        const assistantMessage: Message = {
+          id: uuidv4(),
+          role: 'assistant',
+          content: response.data,
+          timestamp: new Date(),
+        };
+        setMessages((prev) => [...prev, assistantMessage]);
       }
-      console.log('[DEBUG] Received response:', response);
-
-      const assistantMessage: Message = {
-        id: uuidv4(),
-        role: 'assistant',
-        content: response.data,
-        timestamp: new Date(),
-      };
-      setMessages((prev) => [...prev, assistantMessage]);
     } catch (error) {
       console.error('[DEBUG] Error sending message:', error);
       const errorMessage: Message = {

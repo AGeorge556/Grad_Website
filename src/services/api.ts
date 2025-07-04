@@ -138,20 +138,65 @@ export const apiService = {
 
   // Spaces
   getSpaces: async (userId: string): Promise<ApiResponse<any[]>> => {
+    if (!userId) {
+      throw new Error('User ID is required to fetch spaces');
+    }
+    console.log('API: Fetching spaces for user:', userId);
     const response = await api.get(`${API_ENDPOINTS.SPACES}?user_id=${userId}`);
-    return response.data;
+    console.log('API: Spaces response:', response.data);
+    
+    // Ensure we always return a proper structure
+    if (Array.isArray(response.data)) {
+      return { data: response.data, status: response.status };
+    } else {
+      return { data: response.data?.data || [], status: response.status };
+    }
   },
 
   createSpace: async (name: string, description: string, userId: string): Promise<ApiResponse<any>> => {
-    const response = await api.post(`${API_ENDPOINTS.SPACES}?user_id=${userId}`, { name, description });
-    return response.data;
+    if (!userId) {
+      throw new Error('User ID is required to create a space');
+    }
+    if (!name?.trim()) {
+      throw new Error('Space name is required');
+    }
+    
+    console.log('API: Creating space:', { name, description, userId });
+    const response = await api.post(`${API_ENDPOINTS.SPACES}?user_id=${userId}`, { 
+      name: name.trim(), 
+      description: description?.trim() || '' 
+    });
+    console.log('API: Create space response:', response.data);
+    
+    return { data: response.data, status: response.status };
+  },
+
+  deleteSpace: async (spaceId: string, userId: string): Promise<ApiResponse<any>> => {
+    if (!userId) {
+      throw new Error('User ID is required to delete a space');
+    }
+    if (!spaceId) {
+      throw new Error('Space ID is required to delete a space');
+    }
+    
+    console.log('API: Deleting space:', { spaceId, userId });
+    const response = await api.delete(`${API_ENDPOINTS.SPACES}/${spaceId}?user_id=${userId}`);
+    console.log('API: Delete space response:', response.data);
+    
+    return { data: response.data, status: response.status };
   },
 
   // Topics
   getTopics: async (spaceId?: string): Promise<ApiResponse<any[]>> => {
     const url = spaceId ? `${API_ENDPOINTS.TOPICS}?space_id=${spaceId}` : API_ENDPOINTS.TOPICS;
     const response = await api.get(url);
-    return response.data;
+    
+    // Ensure we always return a proper structure
+    if (Array.isArray(response.data)) {
+      return { data: response.data, status: response.status };
+    } else {
+      return { data: response.data?.data || [], status: response.status };
+    }
   },
 
   // User Topics

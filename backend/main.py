@@ -1,3 +1,9 @@
+import os
+from dotenv import load_dotenv
+
+# Load environment variables FIRST, before any other imports
+load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), ".env"))
+
 from fastapi import FastAPI, HTTPException, Depends, UploadFile, File, Request, status, BackgroundTasks, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import APIKeyHeader
@@ -5,8 +11,6 @@ from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from supabase import create_client, Client
 from supabase.lib.client_options import ClientOptions
-import os
-from dotenv import load_dotenv
 from moviepy.editor import VideoFileClip
 import tempfile
 import logging
@@ -57,10 +61,10 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 print("Current working directory:", os.getcwd())
-load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), ".env"))
 print("SUPABASE_URL:", os.getenv("SUPABASE_URL"))
 print("SUPABASE_SERVICE_KEY:", os.getenv("SUPABASE_SERVICE_KEY"))
 print("GROQ_API_KEY:", os.getenv("GROQ_API_KEY"))
+print("MISTRAL_API_KEY:", "***" if os.getenv("MISTRAL_API_KEY") else "Not set")
 
 # Initialize rate limiter
 limiter = Limiter(key_func=get_remote_address)
@@ -350,17 +354,66 @@ async def create_space(space: Space, user_id: str = None, request: Request = Non
             )
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.delete("/spaces/{space_id}")
+@limiter.limit("10/minute")
+async def delete_space(space_id: str, user_id: str, request: Request):
+    if not user_id:
+        raise HTTPException(status_code=400, detail="user_id is required")
+        
+    try:
+        # First, verify the space exists and belongs to the user
+        space_response = supabase.table("spaces").select("*").eq("id", space_id).eq("user_id", user_id).execute()
+        
+        if not space_response.data:
+            raise HTTPException(status_code=404, detail="Space not found or you don't have permission to delete it")
+        
+        # Delete related space_topics entries first (if they exist)
+        try:
+            supabase.table("space_topics").delete().eq("space_id", space_id).execute()
+        except Exception as e:
+            logger.warning(f"Could not delete space_topics for space {space_id}: {str(e)}")
+        
+        # Delete the space
+        response = supabase.table("spaces").delete().eq("id", space_id).eq("user_id", user_id).execute()
+        
+        if not response.data:
+            raise HTTPException(status_code=500, detail="Failed to delete space")
+            
+        return {"message": "Space deleted successfully", "deleted_space_id": space_id}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error deleting space: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.get("/topics")
 async def get_topics(space_id: Optional[str] = None):
-    try:
-        query = supabase.table("topics").select("*")
-        if space_id:
-            query = query.eq("space_id", space_id)
-        response = query.execute()
-        return response.data
-    except Exception as e:
-        logger.error(f"Error getting topics: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+    if space_id:
+        # Get topics for a specific space through the space_topics junction table
+        try:
+            response = supabase.table("space_topics").select(
+                "topics(*)"
+            ).eq("space_id", space_id).execute()
+            
+            # Extract the topics from the junction table response
+            topics = []
+            for item in response.data:
+                if item.get("topics"):
+                    topics.append(item["topics"])
+            return topics
+        except Exception as e:
+            logger.warning(f"Could not query space_topics table: {str(e)}")
+            # Return empty array if tables don't exist yet
+            return []
+    else:
+        # Get all topics
+        try:
+            response = supabase.table("topics").select("*").execute()
+            return response.data
+        except Exception as e:
+            logger.warning(f"Could not query topics table: {str(e)}")
+            # Return empty array if table doesn't exist yet
+            return []
 
 @app.post("/topics/{space_id}")
 async def add_topic_to_space(space_id: str, topic_id: str):

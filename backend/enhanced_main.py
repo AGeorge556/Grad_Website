@@ -89,6 +89,32 @@ class FlashcardReview(BaseModel):
     confidence_score: float = Field(..., ge=0.0, le=1.0)
     time_spent: Optional[int] = None
 
+# Add validation before SadTalker execution
+def validate_sadtalker_setup():
+    """Validate SadTalker setup before execution"""
+    sadtalker_dir = r"D:\University files\Graduation Project\SadTalker"
+    
+    # Check if early_compatibility_patch exists
+    patch_file = os.path.join(sadtalker_dir, "early_compatibility_patch.py")
+    if not os.path.exists(patch_file):
+        logger.warning(f"early_compatibility_patch.py not found at {patch_file}")
+        return False
+    
+    # Check if enhanced inference exists
+    enhanced_inference_file = os.path.join(sadtalker_dir, "inference_enhanced.py")
+    if not os.path.exists(enhanced_inference_file):
+        logger.warning(f"inference_enhanced.py not found at {enhanced_inference_file}")
+        return False
+    
+    # Check if functional_tensor_patch exists
+    functional_patch_file = os.path.join(sadtalker_dir, "functional_tensor_patch.py")
+    if not os.path.exists(functional_patch_file):
+        logger.warning(f"functional_tensor_patch.py not found at {functional_patch_file}")
+        return False
+    
+    logger.info("✅ SadTalker setup validation passed")
+    return True
+
 # Enhanced Chat Endpoint
 @app.post("/enhanced-chat")
 @limiter.limit("15/minute")

@@ -1,6 +1,3 @@
-"""
-Mistral AI API utility functions for secure backend integration.
-"""
 import os
 import json
 import logging

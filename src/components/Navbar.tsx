@@ -42,13 +42,7 @@ export function Navbar() {
                 <Upload className="mr-1 h-4 w-4" />
                 Upload
               </Link>
-              <Link 
-                to="/summary" 
-                className="flex items-center px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-700 transition-colors"
-              >
-                <FileText className="mr-1 h-4 w-4" />
-                Summaries
-              </Link>
+
               <Link 
                 to="/profile" 
                 className="flex items-center px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-700 transition-colors"

@@ -82,4 +82,4 @@ print("     Much better than the starting point!")
 
 print("=" * 50)
 print("Your SadTalker is now MUCH more stable and functional! 🎉")
-input("Press Enter to exit...") 
+# Non-interactive mode: removed input() for backend compatibility 

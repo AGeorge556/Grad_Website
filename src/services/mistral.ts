@@ -1,5 +1,3 @@
-import { apiService } from './api';
-
 // Updated Mistral service to use secure backend endpoints
 export interface Suggestion {
   id: string;

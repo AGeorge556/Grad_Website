@@ -10,11 +10,12 @@ import { EnhancedQuiz } from '../components/EnhancedQuiz';
 import { Notes } from '../components/Notes';
 import YouTube from 'react-youtube';
 import { mistralService, type ChatMessage, type Suggestion } from '../services/mistral';
+import '../styles/resizable-chat.css';
 
 // Types
 type VideoStatus = 'processing' | 'completed' | 'failed';
 type VideoMode = 'youtube' | 'talkinghead';
-type Tab = 'chat' | 'flashcards' | 'quizzes' | 'summary' | 'notes';
+type Tab = 'chat' | 'flashcards' | 'quizzes' | 'notes';
 
 interface Flashcard {
   id: number;
@@ -502,34 +503,28 @@ export const Summary: React.FC = () => {
         return loading ? (
           <LoadingSkeleton count={3} />
         ) : (
+          <div className="h-full overflow-y-auto">
           <EnhancedFlashcards flashcards={adaptFlashcardsData(videoData?.flashcards || [])} />
+          </div>
         );
       case 'quizzes':
         return loading ? (
           <LoadingSkeleton count={3} />
         ) : (
+          <div className="h-full overflow-y-auto">
           <EnhancedQuiz questions={adaptQuizData(videoData?.quizzes || [])} />
-        );
-      case 'notes':
-        return <Notes initialNotes={videoData?.notes || ''} videoId={videoId || ''} />;
-      case 'summary':
-        return (
-          <div className="p-4">
-            <h3 className="text-lg font-medium mb-4">Video Summary</h3>
-            {loading ? (
-              <div className="animate-pulse h-6 bg-gray-200 dark:bg-gray-700 rounded w-3/4 mb-2"></div>
-            ) : (
-              <p className="text-gray-600 dark:text-gray-300">{summary || 'No summary available yet.'}</p>
-            )}
-            {audioUrl && !loading && (
-              <audio controls src={audioUrl} className="mt-4 w-full">
-                Your browser does not support the audio element.
-              </audio>
-            )}
           </div>
         );
+      case 'notes':
+        return (
+          <div className="h-full overflow-y-auto">
+            <Notes initialNotes={videoData?.notes || ''} videoId={videoId || ''} />
+          </div>
+        );
+
       default:
         return (
+          <div className="h-full overflow-hidden">
           <ChatInterface
             suggestions={suggestions}
             query={query}
@@ -538,6 +533,7 @@ export const Summary: React.FC = () => {
             messages={messages}
             isLoading={isChatLoading}
           />
+          </div>
         );
     }
   }, [activeTab, loading, videoData, videoId, summary, audioUrl, query, suggestions, messages, isChatLoading]);
@@ -582,13 +578,15 @@ export const Summary: React.FC = () => {
           </div>
 
           {/* Interactive Section */}
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm overflow-hidden">
+          <div className="resizable-interactive bg-white dark:bg-gray-800 rounded-lg shadow-sm">
+            <div className="h-full flex flex-col overflow-hidden">
             <TabNavigation
               activeTab={activeTab}
               onTabChange={setActiveTab}
             />
-            <div className="h-[600px] flex flex-col">
+              <div className="flex-1 overflow-hidden">
               {renderTabContent()}
+              </div>
             </div>
           </div>
         </div>
@@ -697,12 +695,7 @@ const TabNavigation: React.FC<{
                 label="Quizzes"
       onClick={() => onTabChange('quizzes')}
               />
-              <TabButton
-                active={activeTab === 'summary'}
-                icon={<FileText size={18} />}
-                label="Summary"
-      onClick={() => onTabChange('summary')}
-              />
+
               <TabButton
                 active={activeTab === 'notes'}
                 icon={<PenTool size={18} />}

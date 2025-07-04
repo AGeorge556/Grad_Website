@@ -13,7 +13,6 @@ export default function Dashboard() {
   const { user } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
   const [isChatOpen, setIsChatOpen] = useState(false);
-  const [selectedSpace, setSelectedSpace] = useState<string | null>(null);
   const [showRecorder, setShowRecorder] = useState(false);
 
   const handleUpload = () => navigate('/upload');
@@ -25,6 +24,11 @@ export default function Dashboard() {
     if (searchQuery.trim()) {
       setIsChatOpen(true);
     }
+  };
+
+  // Handle space selection by navigating to space detail page
+  const handleSpaceSelect = (spaceId: string) => {
+    navigate(`/spaces/${spaceId}`);
   };
 
   return (
@@ -104,7 +108,7 @@ export default function Dashboard() {
         <div className="md:col-span-1 space-y-8">
           {/* Spaces Section */}
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
-            <SpacesList onSpaceSelect={setSelectedSpace} />
+            <SpacesList onSpaceSelect={handleSpaceSelect} />
           </div>
 
           {/* Videos Section */}

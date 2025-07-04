@@ -172,8 +172,7 @@ def main():
     print(" - SadTalker models should be in the './checkpoints' directory")
     print(" - GFPGAN models should be in the './gfpgan/weights' directory")
     
-    # Wait for user input before closing
-    input("\nPress Enter to exit...")
+    # Non-interactive mode: removed input() for backend compatibility
 
 if __name__ == "__main__":
     main()

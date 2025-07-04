@@ -10,7 +10,9 @@ import { MyProfile } from '@/pages/MyProfile'
 import { Home } from '@/pages/Home'
 import Dashboard from '@/pages/Dashboard'
 import TalkingHead from '@/pages/TalkingHead'
+import SpaceDetail from '@/pages/SpaceDetail'
 import { Navbar } from '@/components/Navbar'
+import { EnhancedChat, FloatingChatIcon } from '@/components/EnhancedChat'
 import { Toaster } from 'react-hot-toast'
 import { useAuth } from '@/hooks/useAuth'
 
@@ -49,11 +51,19 @@ function App() {
     error: null,
   });
   
+  // Add chat state
+  const [isChatOpen, setIsChatOpen] = useState(false);
+  
   // Toggle dark mode function
   const toggleDarkMode = () => {
     const newMode = !isDarkMode;
     setIsDarkMode(newMode);
     localStorage.setItem('darkMode', JSON.stringify(newMode));
+  };
+  
+  // Toggle chat function
+  const toggleChat = () => {
+    setIsChatOpen(!isChatOpen);
   };
   
   // Apply dark mode class to html element
@@ -122,6 +132,14 @@ function App() {
                 }
               />
               <Route
+                path="/spaces/:id"
+                element={
+                  <AuthenticatedRoute>
+                    <SpaceDetail />
+                  </AuthenticatedRoute>
+                }
+              />
+              <Route
                 path="/upload"
                 element={
                   <AuthenticatedRoute>
@@ -156,6 +174,16 @@ function App() {
               <Route path="*" element={<Navigate to="/" />} />
             </Routes>
           </div>
+          
+          {/* Floating Chat Icon */}
+          <FloatingChatIcon onClick={toggleChat} />
+          
+          {/* Enhanced Chat Component */}
+          <EnhancedChat 
+            isOpen={isChatOpen} 
+            onClose={() => setIsChatOpen(false)}
+            title="AI Learning Assistant"
+          />
         </div>
       </AuthProvider>
     </Router>

@@ -1,0 +1,8 @@
+Requirement already satisfied: uvicorn in c:\users\andrew george\appdata\local\programs\python\python312\lib\site-packages (0.24.0)
+Requirement already satisfied: click>=7.0 in c:\users\andrew george\appdata\local\programs\python\python312\lib\site-packages (from uvicorn) (8.1.8)
+Collecting h11>=0.8 (from uvicorn)
+  Using cached h11-0.16.0-py3-none-any.whl.metadata (8.3 kB)
+Requirement already satisfied: colorama in c:\users\andrew george\appdata\local\programs\python\python312\lib\site-packages (from click>=7.0->uvicorn) (0.4.6)
+Using cached h11-0.16.0-py3-none-any.whl (37 kB)
+Installing collected packages: h11
+Successfully installed h11-0.16.0
